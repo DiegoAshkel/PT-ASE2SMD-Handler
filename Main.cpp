@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-#include <Windows.h>
+//#include <Windows.h>
 
 #include "ASE.h"
 

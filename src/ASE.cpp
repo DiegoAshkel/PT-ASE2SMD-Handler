@@ -395,7 +395,7 @@ void ASE_RawData::Load(const std::string &fileName)
 		return;
 	}
 
-	KeyReader reader("Hopy.ase");
+	KeyReader reader(fileName);
 
 	char *pKey = nullptr;
 

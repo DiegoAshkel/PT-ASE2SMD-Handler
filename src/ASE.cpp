@@ -399,61 +399,94 @@ void ASE_RawData::Load(const std::string &fileName)
 
 	char *pKey = nullptr;
 
-	while (!reader.IsEOF())
+	bool exiting = false;
+
+	while (!reader.IsEOF() && !exiting)
 	{
 		pKey = reader.GetKey();
 
-		if (pKey)
-		{
-			if (strcmpi(pKey, "*3DSMAX_ASCIIEXPORT") == 0)
-			{
-				Version = reader.GetInteger();
-			}
-			else if (strcmpi(pKey, "*COMMENT") == 0)
-			{
-				std::string str = reader.GetString();
-				strncpy_s(Comment, str.c_str(), str.length());
-			}
-			else if (strcmpi(pKey, "*SCENE_FILENAME") == 0)
-			{
-				std::string str = reader.GetString();
-				strncpy_s(Description.FileName, str.c_str(), str.length());
-			}
-			else if (strcmpi(pKey, "*SCENE_FIRSTFRAME") == 0)
-			{
-				Description.FirstFrame = reader.GetInteger();
-			}
-			else if (strcmpi(pKey, "*SCENE_LASTFRAME") == 0)
-			{
-				Description.LastFrame = reader.GetInteger();
-			}
-			else if (strcmpi(pKey, "*SCENE_FRAMESPEED") == 0)
-			{
-				Description.FrameSpeed = reader.GetInteger();
-			}
-			else if (strcmpi(pKey, "*SCENE_FRAMESPEED") == 0)
-			{
-				Description.FrameSpeed = reader.GetInteger();
-			}
-			else if (strcmpi(pKey, "*SCENE_TICKSPERFRAME") == 0)
-			{
-				Description.TicksPerFrame = reader.GetInteger();
-			}
-			else if (strcmpi(pKey, "*SCENE_BACKGROUND_STATIC") == 0)
-			{
-				Description.BackgroundColor.R = reader.GetFloat();
-				Description.BackgroundColor.G = reader.GetFloat();
-				Description.BackgroundColor.B = reader.GetFloat();
-			}
-			else if (strcmpi(pKey, "*SCENE_AMBIENT_STATIC") == 0)
-			{
-				Description.AmbientColor.R = reader.GetFloat();
-				Description.AmbientColor.G = reader.GetFloat();
-				Description.AmbientColor.B = reader.GetFloat();
-			}
+		if (!pKey)
+			continue;
 
-			delete[] pKey;
-			pKey = nullptr;
+		if (strcmpi(pKey, "*3DSMAX_ASCIIEXPORT") == 0)
+		{
+			Version = reader.GetInteger();
 		}
+		else if (strcmpi(pKey, "*COMMENT") == 0)
+		{
+			std::string str = reader.GetString();
+			strncpy_s(Comment, str.c_str(), str.length());
+		}
+		/// Scene description
+		else if (strcmpi(pKey, "*SCENE_FILENAME") == 0)
+		{
+			std::string str = reader.GetString();
+			strncpy_s(Description.FileName, str.c_str(), str.length());
+		}
+		else if (strcmpi(pKey, "*SCENE_FIRSTFRAME") == 0)
+		{
+			Description.FirstFrame = reader.GetInteger();
+		}
+		else if (strcmpi(pKey, "*SCENE_LASTFRAME") == 0)
+		{
+			Description.LastFrame = reader.GetInteger();
+		}
+		else if (strcmpi(pKey, "*SCENE_FRAMESPEED") == 0)
+		{
+			Description.FrameSpeed = reader.GetInteger();
+		}
+		else if (strcmpi(pKey, "*SCENE_FRAMESPEED") == 0)
+		{
+			Description.FrameSpeed = reader.GetInteger();
+		}
+		else if (strcmpi(pKey, "*SCENE_TICKSPERFRAME") == 0)
+		{
+			Description.TicksPerFrame = reader.GetInteger();
+		}
+		else if (strcmpi(pKey, "*SCENE_BACKGROUND_STATIC") == 0)
+		{
+			Description.BackgroundColor.R = reader.GetFloat();
+			Description.BackgroundColor.G = reader.GetFloat();
+			Description.BackgroundColor.B = reader.GetFloat();
+		}
+		else if (strcmpi(pKey, "*SCENE_AMBIENT_STATIC") == 0)
+		{
+			Description.AmbientColor.R = reader.GetFloat();
+			Description.AmbientColor.G = reader.GetFloat();
+			Description.AmbientColor.B = reader.GetFloat();
+		}
+		/// Materials
+		else if (strcmpi(pKey, "*MATERIAL_LIST") == 0)
+		{
+			KeyReader *block = reader.GetBlock();
+			if (block != nullptr)
+			{
+				std::cout << "Block size: " << block->GetSize() << std::endl;
+
+				while (!block->IsEOF())
+				{
+					char *lpKey = block->GetKey();
+					if (!lpKey)
+						continue;
+
+					if (strcmpi(lpKey, "*MATERIAL_COUNT") == 0)
+					{
+						Materials.Count = block->GetInteger();
+
+						std::cout << "Entered block!" << std::endl;
+						std::cout << "MATERIAL_COUNT: " << Materials.Count << std::endl;
+					}
+
+					delete[] lpKey;
+					lpKey = nullptr;
+				}
+
+				delete block;
+				block = nullptr;
+			}
+		}
+
+		delete[] pKey;
+		pKey = nullptr;
 	}
 }

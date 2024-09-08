@@ -3,42 +3,60 @@
 #include <iostream>
 
 KeyReader::KeyReader(const std::string &fileName)
-	: m_Offset(0), m_StartOffset(0), m_Buffer()
+	: m_Offset(0ull), m_StartOffset(0ull), m_Buffer()
 {
-	Close();
+	// store filename
+	m_FileName = fileName;
 
 	// open the file:
-	m_file.open(fileName, std::ios::binary);
+	m_File.open(fileName, std::ios::binary);
 
 	// check if it's open
-	if (!m_file.is_open())
+	if (!m_File.is_open())
 	{
 		std::string message = "Can't open file: ";
 		message += fileName;
 
-		throw std::exception(message.c_str());
+		std::cerr << message << std::endl;
+
+		std::exception ex(message.c_str());
+
+		throw ex;
 	}
 
 	// Stop eating new lines in binary mode!!!
-	m_file.unsetf(std::ios::skipws);
+	m_File.unsetf(std::ios::skipws);
 
 	// calculate file size
-	m_file.seekg(0, std::ios::end);
-	size_t length = m_file.tellg();
-	m_file.seekg(0, std::ios::beg);
+	m_File.seekg(0, std::ios::end);
+	size_t length = m_File.tellg();
+	m_File.seekg(0, std::ios::beg);
 
 	// reserve enough mem for our file buffer
 	m_Buffer.reserve(length + 1);
 
 	// store file to our buffer
-	m_Buffer.insert(m_Buffer.begin(), std::istream_iterator<char>(m_file), std::istream_iterator<char>());
+	m_Buffer.insert(m_Buffer.begin(), std::istream_iterator<char>(m_File), std::istream_iterator<char>());
 
-	Close();
+	m_File.close();
+}
+
+KeyReader::KeyReader(const std::vector<char> &buffer)
+	: m_Offset(0ull), m_StartOffset(0ull), m_Buffer(buffer)
+{
 }
 
 KeyReader::~KeyReader()
 {
-	Close();
+	if (m_File.is_open())
+	{
+		m_File.close();
+	}
+
+	m_FileName.clear();
+	m_Offset = 0ull;
+	m_StartOffset = 0ull;
+	m_Buffer.clear();
 }
 
 bool KeyReader::IsEOF() const
@@ -131,30 +149,90 @@ std::string KeyReader::GetString()
 		return str;
 	}
 
+	std::vector<char> vBuffer = m_Buffer;
+
 	// append char till the end of the string" or '
 	while (!IsEOF() &&
-		   m_Buffer[m_Offset] != delim)
+		   vBuffer[m_Offset] != delim)
 	{
-		if (m_Buffer[m_Offset] == '\r' ||
-			m_Buffer[m_Offset] == '\n' ||
-			m_Buffer[m_Offset] == '\0')
+		if (vBuffer[m_Offset] == '\r' ||
+			vBuffer[m_Offset] == '\n' ||
+			vBuffer[m_Offset] == '\0')
 			break;
 
-		str += m_Buffer[m_Offset];
+		str += vBuffer[m_Offset];
 		m_Offset++;
 	}
 
 	return str;
 }
 
+KeyReader *KeyReader::GetBlock()
+{
+	bool isBlock = false;
+
+	char *pBuffer = GetWords();
+	if (pBuffer && pBuffer[0] == '{')
+	{
+		isBlock = true;
+
+		delete[] pBuffer;
+		pBuffer = nullptr;
+	}
+
+	if (!isBlock)
+	{
+		return nullptr;
+	}
+
+	size_t start = m_Offset;
+	bool isInnerBlock = false;
+
+	while (!IsEOF())
+	{
+		if (m_Buffer[m_Offset] == '{')
+		{
+			isInnerBlock = true;
+		}
+		else if (m_Buffer[m_Offset] == '}')
+		{
+			if (!isInnerBlock)
+				break;
+
+			isInnerBlock = false;
+		}
+
+		m_Offset++;
+	}
+
+	size_t end = m_Offset;
+
+	size_t length = end - start;
+	if (length <= 0)
+		return nullptr;
+
+	std::vector<char> vBuffer;
+	vBuffer.reserve(length);
+	vBuffer.insert(vBuffer.begin(), m_Buffer.begin() + start, m_Buffer.begin() + end);
+
+	std::cout << "vBuffer: " << std::string(vBuffer.data()) << std::endl;
+
+	KeyReader *reader = new KeyReader(vBuffer);
+
+	return reader;
+}
+
 char *KeyReader::GetWords()
 {
-	size_t start = 0, end = 0;
+	std::vector<char> vBuffer = m_Buffer;
+
+	size_t start = 0,
+		   end = 0;
 
 	// Increase offset till it finds the first char that is no tab or space
 	while (!IsEOF() &&
-		   (m_Buffer[m_Offset] == '\t' || // TAB
-			m_Buffer[m_Offset] == ' '))	  // SPACE
+		   (vBuffer[m_Offset] == '\t' || // TAB
+			vBuffer[m_Offset] == ' '))	 // SPACE
 	{
 		m_Offset++;
 	}
@@ -165,12 +243,12 @@ char *KeyReader::GetWords()
 
 	// Increase offset while it didn't find the end of "word" (no tab, space, cr, lf, or zero)
 	while (!IsEOF() &&
-		   (m_Buffer[m_Offset] != '\t' && // TAB
-			m_Buffer[m_Offset] != ' '))	  // SPACE
+		   (vBuffer[m_Offset] != '\t' && // TAB
+			vBuffer[m_Offset] != ' '))	 // SPACE
 	{
-		if (m_Buffer[m_Offset] == '\r' ||
-			m_Buffer[m_Offset] == '\n' ||
-			m_Buffer[m_Offset] == '\0')
+		if (vBuffer[m_Offset] == '\r' ||
+			vBuffer[m_Offset] == '\n' ||
+			vBuffer[m_Offset] == '\0')
 			break;
 
 		m_Offset++;
@@ -188,18 +266,10 @@ char *KeyReader::GetWords()
 	char *pBuffer = new char[length + 1];
 
 	// copy "word" for our buffer
-	std::copy(&m_Buffer[start], &m_Buffer[end], pBuffer);
+	std::copy(&vBuffer[start], &vBuffer[end], pBuffer);
 
 	// puts a zero at it's end
 	pBuffer[length] = 0;
 
 	return pBuffer;
-}
-
-void KeyReader::Close()
-{
-	if (m_file.is_open())
-	{
-		m_file.close();
-	}
 }

@@ -186,20 +186,20 @@ KeyReader *KeyReader::GetBlock()
 	}
 
 	size_t start = m_Offset;
-	bool isInnerBlock = false;
+	int blockLevel = 0;
 
 	while (!IsEOF())
 	{
 		if (m_Buffer[m_Offset] == '{')
 		{
-			isInnerBlock = true;
+			blockLevel++;
 		}
 		else if (m_Buffer[m_Offset] == '}')
 		{
-			if (!isInnerBlock)
+			if (blockLevel == 0)
 				break;
 
-			isInnerBlock = false;
+			blockLevel--;
 		}
 
 		m_Offset++;

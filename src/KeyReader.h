@@ -1,19 +1,21 @@
-#ifndef KEY_READER_H
-#define KEY_READER_H
+#pragma once
 
 #include <string>
 #include <fstream>
 #include <vector>
 
-/// Helper class to read and load ASE files
-/// Open file in binary mode and store into a vector buffer,
-/// use it's methods to advance through the buffer and get it's values
+/// Helper class to read and load ASE files.
+/// Use it's methods to advance through the file/buffer and get it's values.
 class KeyReader
 {
 public:
-	/// Initialize KeyReader object, and store file data into buffer.
+	/// Initialize KeyReader object from a file.
 	KeyReader(const std::string &fileName);
-	KeyReader(const std::vector<char> &buffer);
+
+	/// Initialize KeyReader object from a char buffer.
+	KeyReader(const char *lpData, size_t size);
+
+	/// Destructor
 	virtual ~KeyReader();
 
 	/// Is end of file/buffer.
@@ -22,8 +24,20 @@ public:
 	/// Get size of buffer.
 	size_t GetSize() const;
 
+	/// Get buffer.
+	char *Get() const;
+
+	/// Read line from file
+	std::string ReadLine();
+
+	/// Read block from file
+	std::string ReadBlock();
+
 	/// Get key string starting with '*'.
 	char *GetKey();
+
+	/// Advance through the buffer and search for "words".
+	std::string GetWord();
 
 	/// Get int value.
 	int GetInteger();
@@ -34,18 +48,24 @@ public:
 	/// Get string value(wrapped between '' or "").
 	std::string GetString();
 
+	/// Get a new KeyReader, containing the data of a inner block(wrapped between {})
 	KeyReader *GetBlock();
 
 private:
-	/// Advance through the buffer and find for "words".
+	/// Advance through the buffer and search for "words".
 	char *GetWords();
 
+	/// Close file.
+	void Close();
+
+	/// Release buffer.
+	void Release();
+
 private:
-	std::string m_FileName;
 	std::ifstream m_File;
 	size_t m_Offset;
 	size_t m_StartOffset;
-	std::vector<char> m_Buffer;
-};
 
-#endif
+	size_t m_BufferSize;
+	char *m_lpBuffer;
+};

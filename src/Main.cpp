@@ -2,77 +2,86 @@
 #include <string>
 #include <vector>
 
-// #include <Windows.h>
-
 #include "ASE.h"
-#include "KeyReader.h"
+
+// #include <Windows.h>
 
 int main(int argc, char *argv[])
 {
 	ASE_RawData ase_rd;
-	ase_rd.Load("Hopy.ase");
-
-	// ase_rd.Version = 200;
-	// strcpy_s(ase_rd.Comment, "AsciiExport Version  2.00 - Thu May 29 15:00:18 2003");
-	// strcpy_s(ase_rd.Description.FileName, "Hopy.max");
-	// ase_rd.Description.FirstFrame = 0;
-	// ase_rd.Description.LastFrame = 311;
-	// ase_rd.Description.FrameSpeed = 30;
-	// ase_rd.Description.TicksPerFrame = 160;
-	// ase_rd.Description.BackgroundColor = {0.000f, 0.000f, 0.000f};
-	// ase_rd.Description.AmbientColor = {0.043f, 0.043f, 0.043f};
-
-	// Material mat;
-	// mat.Index = 0;
-	// strcpy_s(mat.Name, "Material #25");
-	// strcpy_s(mat.Class, "Standard");
-	// mat.Ambient = {0.179f, 0.065f, 0.065f};
-	// mat.Diffuse = {0.537f, 0.196f, 0.196f};
-	// mat.Specular = {0.900f, 0.900f, 0.900f};
-	// mat.Shine = 0.250f;
-	// mat.ShineStrength = 0.050f;
-	// mat.Transparency = 0.000f;
-	// mat.WireSize = 1.000f;
-	// mat.Shading = SHADING_BLINN;
-	// mat.SelfIllum = 0.000f;
-	// mat.FallOff = FALLOFF_IN;
-	// mat.XPFallOff = 0.000f;
-	// mat.FallOffTransition = XPTYPE_FILTER;
-	// mat.SubMaterialCount = 0;
-	// mat.Submaterials.clear();
-
-	// TextureMap texture;
-	// texture.Identifier = TEXTUREMAP_DIFFUSE;
-	// strcpy_s(texture.Name, "Map #0");
-	// strcpy_s(texture.Class, "Bitmap");
-	// texture.SubNo = 1;
-	// texture.Amount = 1.000f;
-	// strcpy_s(texture.FilePath, ".\\monhopy\\Monhobi.bmp");
-	// texture.Type = MAP_SCREEN;
-	// texture.UVW.U_Offset = 0.000f;
-	// texture.UVW.V_Offset = 0.000f;
-	// texture.UVW.U_Tiling = 1.000f;
-	// texture.UVW.V_Tiling = 1.000f;
-	// texture.UVW.Angle = 0.000f;
-	// texture.UVW.Blur = 1.000f;
-	// texture.UVW.BlurOffset = 0.000f;
-	// texture.UVW.NoiseAmount = 1.000f;
-	// texture.UVW.NoiseSize = 1.000f;
-	// texture.UVW.NoiseLevel = 1;
-	// texture.UVW.NoisePhase = 0.000f;
-	// texture.Filter = TEXTUREFILTER_PYRAMIDAL;
-
-	// mat.Add(texture);
-
-	// ase_rd.Materials.Count = 1;
-	// ase_rd.Materials.Add(mat);
-
-	ase_rd.Save("data.ase.dat");
+	ase_rd.Load("../bin/frost.ase");
+	ase_rd.Save("frost.dat");
 
 	system("pause");
 
 	return 0;
 }
+
+// int main(int argc, char *argv[])
+// {
+// 	ASE_RawData ase_rd;
+
+// ase_rd.Version = 200;
+// strcpy_s(ase_rd.Comment, "AsciiExport Version  2.00 - Thu May 29 15:00:18 2003");
+// strcpy_s(ase_rd.Description.FileName, "Hopy.max");
+// ase_rd.Description.FirstFrame = 0;
+// ase_rd.Description.LastFrame = 311;
+// ase_rd.Description.FrameSpeed = 30;
+// ase_rd.Description.TicksPerFrame = 160;
+// ase_rd.Description.BackgroundColor = {0.000f, 0.000f, 0.000f};
+// ase_rd.Description.AmbientColor = {0.043f, 0.043f, 0.043f};
+
+// Material mat;
+// mat.Index = 0;
+// strcpy_s(mat.Name, "Material #25");
+// strcpy_s(mat.Class, "Standard");
+// mat.Ambient = {0.179f, 0.065f, 0.065f};
+// mat.Diffuse = {0.537f, 0.196f, 0.196f};
+// mat.Specular = {0.900f, 0.900f, 0.900f};
+// mat.Shine = 0.250f;
+// mat.ShineStrength = 0.050f;
+// mat.Transparency = 0.000f;
+// mat.WireSize = 1.000f;
+// mat.Shading = SHADING_BLINN;
+// mat.SelfIllum = 0.000f;
+// mat.FallOff = FALLOFF_IN;
+// mat.XPFallOff = 0.000f;
+// mat.FallOffTransition = XPTYPE_FILTER;
+// mat.SubMaterialCount = 0;
+// mat.Submaterials.clear();
+
+// TextureMap texture;
+// texture.Identifier = TEXTUREMAP_DIFFUSE;
+// strcpy_s(texture.Name, "Map #0");
+// strcpy_s(texture.Class, "Bitmap");
+// texture.SubNo = 1;
+// texture.Amount = 1.000f;
+// strcpy_s(texture.FilePath, ".\\monhopy\\Monhobi.bmp");
+// texture.Type = MAP_SCREEN;
+// texture.UVW.U_Offset = 0.000f;
+// texture.UVW.V_Offset = 0.000f;
+// texture.UVW.U_Tiling = 1.000f;
+// texture.UVW.V_Tiling = 1.000f;
+// texture.UVW.Angle = 0.000f;
+// texture.UVW.Blur = 1.000f;
+// texture.UVW.BlurOffset = 0.000f;
+// texture.UVW.NoiseAmount = 1.000f;
+// texture.UVW.NoiseSize = 1.000f;
+// texture.UVW.NoiseLevel = 1;
+// texture.UVW.NoisePhase = 0.000f;
+// texture.Filter = TEXTUREFILTER_PYRAMIDAL;
+
+// mat.Add(texture);
+
+// ase_rd.Materials.Count = 1;
+// ase_rd.Materials.Add(mat);
+
+// 	ase_rd.Save("data.ase.dat");
+
+// 	system("pause");
+
+// 	return 0;
+// }
 
 // struct Material
 // {

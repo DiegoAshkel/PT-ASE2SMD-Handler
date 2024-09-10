@@ -1,17 +1,11 @@
 #include "KeyReader.h"
-#include <exception>
+#include <stdexcept>
 #include <iostream>
 
 KeyReader::KeyReader(const std::string &fileName)
-	: m_Offset(0ull), m_StartOffset(0ull), m_Buffer()
+	: m_Offset(0ull), m_StartOffset(0ull), m_BufferSize(0ull), m_lpBuffer(nullptr)
 {
-	// store filename
-	m_FileName = fileName;
-
-	// open the file:
-	m_File.open(fileName, std::ios::binary);
-
-	// check if it's open
+	m_File.open(fileName);
 	if (!m_File.is_open())
 	{
 		std::string message = "Can't open file: ";
@@ -19,60 +13,136 @@ KeyReader::KeyReader(const std::string &fileName)
 
 		std::cerr << message << std::endl;
 
-		std::exception ex(message.c_str());
-
-		throw ex;
+		throw std::exception(message.c_str());
 	}
-
-	// Stop eating new lines in binary mode!!!
-	m_File.unsetf(std::ios::skipws);
-
-	// calculate file size
-	m_File.seekg(0, std::ios::end);
-	size_t length = m_File.tellg();
-	m_File.seekg(0, std::ios::beg);
-
-	// reserve enough mem for our file buffer
-	m_Buffer.reserve(length + 1);
-
-	// store file to our buffer
-	m_Buffer.insert(m_Buffer.begin(), std::istream_iterator<char>(m_File), std::istream_iterator<char>());
-
-	m_File.close();
 }
 
-KeyReader::KeyReader(const std::vector<char> &buffer)
-	: m_Offset(0ull), m_StartOffset(0ull), m_Buffer(buffer)
+KeyReader::KeyReader(const char *lpData, size_t size)
+	: m_Offset(0ull), m_StartOffset(0ull), m_BufferSize(size + 1)
 {
+	m_lpBuffer = new char[m_BufferSize];
+
+	std::copy_n(lpData, size, m_lpBuffer);
+
+	// Ensure the buffer is null terminated.
+	m_lpBuffer[size] = 0;
 }
 
 KeyReader::~KeyReader()
 {
-	if (m_File.is_open())
-	{
-		m_File.close();
-	}
-
-	m_FileName.clear();
 	m_Offset = 0ull;
 	m_StartOffset = 0ull;
-	m_Buffer.clear();
+	m_BufferSize = 0ull;
+
+	Close();
+	Release();
 }
 
 bool KeyReader::IsEOF() const
 {
-	return (m_Offset + 1) >= m_Buffer.size();
+	// If KeyReader has a file, return file EOF.
+	if (m_File.is_open())
+	{
+		return m_File.eof();
+	}
+
+	// Else, return end of buffer.
+	return (m_Offset >= m_BufferSize);
 }
 
 size_t KeyReader::GetSize() const
 {
-	return m_Buffer.size();
+	return m_BufferSize;
+}
+
+char *KeyReader::Get() const
+{
+	return m_lpBuffer;
+}
+
+std::string KeyReader::ReadLine()
+{
+	// Release buffer
+	Release();
+
+	// Read line from file
+	std::string str;
+	str.reserve(256);
+	std::getline(m_File, str);
+
+	// Allocate new buffer
+	size_t length = str.length();
+	m_BufferSize = length + 1;
+	m_lpBuffer = new char[m_BufferSize];
+
+	// Copy line to buffer
+	std::copy(str.begin(), str.begin() + length, m_lpBuffer);
+	m_lpBuffer[length] = 0;
+	m_Offset = 0ull;
+
+	return str;
+}
+
+std::string KeyReader::ReadBlock()
+{
+	bool isBlock = false;
+
+	// get opening brace.
+	char *pBuffer = GetWords();
+	if (pBuffer && pBuffer[0] == '{')
+	{
+		isBlock = true;
+
+		delete[] pBuffer;
+		pBuffer = nullptr;
+	}
+
+	std::string str;
+	str.reserve(1024);
+
+	// If there is no opening brace, return empty string.
+	if (!isBlock)
+	{
+		return str;
+	}
+
+	int blockLevel = 0;
+
+	// advance through the buffer.
+	while (!IsEOF())
+	{
+		// Read new line if needed
+		if (m_Offset >= m_BufferSize)
+		{
+			ReadLine();
+
+			str += "\r\n";
+		}
+
+		// if there is another opening brace, it's entering a new block(inner block).
+		if (m_lpBuffer[m_Offset] == '{')
+		{
+			blockLevel++;
+		}
+		else if (m_lpBuffer[m_Offset] == '}')
+		{
+			// if the current block level is zero, it's the end of the block.
+			if (blockLevel == 0)
+				break;
+
+			// if not, just leave the inner block.
+			blockLevel--;
+		}
+
+		str += m_lpBuffer[m_Offset++];
+	}
+
+	return str;
 }
 
 char *KeyReader::GetKey()
 {
 	char *pBuffer = GetWords();
-
 	if (pBuffer)
 	{
 		if (pBuffer[0] == '*')
@@ -85,10 +155,25 @@ char *KeyReader::GetKey()
 	return nullptr;
 }
 
+std::string KeyReader::GetWord()
+{
+	std::string str;
+
+	char *pBuffer = GetWords();
+	if (pBuffer)
+	{
+		str.append(pBuffer);
+
+		delete[] pBuffer;
+		pBuffer = nullptr;
+	}
+
+	return str;
+}
+
 int KeyReader::GetInteger()
 {
 	char *pBuffer = GetWords();
-
 	if (pBuffer)
 	{
 		int value = std::atoi(pBuffer);
@@ -105,10 +190,9 @@ int KeyReader::GetInteger()
 float KeyReader::GetFloat()
 {
 	char *pBuffer = GetWords();
-
 	if (pBuffer)
 	{
-		int value = std::atof(pBuffer);
+		float value = std::atof(pBuffer);
 
 		delete[] pBuffer;
 		pBuffer = nullptr;
@@ -121,7 +205,7 @@ float KeyReader::GetFloat()
 
 std::string KeyReader::GetString()
 {
-	std::string str = "";
+	std::string str;
 
 	// get "word"
 	char *pBuffer = GetWords();
@@ -136,10 +220,10 @@ std::string KeyReader::GetString()
 	char delim = 0;
 
 	// get it's string delimiter
-	if (m_Buffer[m_StartOffset] == '\"' || // ""
-		m_Buffer[m_StartOffset] == '\'')   // ''
+	if (m_lpBuffer[m_StartOffset] == '\"' || // ""
+		m_lpBuffer[m_StartOffset] == '\'')	 // ''
 	{
-		delim = m_Buffer[m_StartOffset];
+		delim = m_lpBuffer[m_StartOffset];
 		m_Offset = ++m_StartOffset;
 	}
 
@@ -149,19 +233,16 @@ std::string KeyReader::GetString()
 		return str;
 	}
 
-	std::vector<char> vBuffer = m_Buffer;
-
-	// append char till the end of the string" or '
-	while (!IsEOF() &&
-		   vBuffer[m_Offset] != delim)
+	// append char till the end of the string " or '
+	while ((m_Offset < m_BufferSize) &&
+		   m_lpBuffer[m_Offset] != delim)
 	{
-		if (vBuffer[m_Offset] == '\r' ||
-			vBuffer[m_Offset] == '\n' ||
-			vBuffer[m_Offset] == '\0')
+		if (m_lpBuffer[m_Offset] == '\r' ||
+			m_lpBuffer[m_Offset] == '\n' ||
+			m_lpBuffer[m_Offset] == '\0')
 			break;
 
-		str += vBuffer[m_Offset];
-		m_Offset++;
+		str += m_lpBuffer[m_Offset++];
 	}
 
 	return str;
@@ -169,107 +250,83 @@ std::string KeyReader::GetString()
 
 KeyReader *KeyReader::GetBlock()
 {
-	bool isBlock = false;
-
-	char *pBuffer = GetWords();
-	if (pBuffer && pBuffer[0] == '{')
-	{
-		isBlock = true;
-
-		delete[] pBuffer;
-		pBuffer = nullptr;
-	}
-
-	if (!isBlock)
-	{
-		return nullptr;
-	}
-
-	size_t start = m_Offset;
-	int blockLevel = 0;
-
-	while (!IsEOF())
-	{
-		if (m_Buffer[m_Offset] == '{')
-		{
-			blockLevel++;
-		}
-		else if (m_Buffer[m_Offset] == '}')
-		{
-			if (blockLevel == 0)
-				break;
-
-			blockLevel--;
-		}
-
-		m_Offset++;
-	}
-
-	size_t end = m_Offset;
-
-	size_t length = end - start;
+	std::string str = ReadBlock();
+	size_t length = str.length();
 	if (length <= 0)
 		return nullptr;
 
-	std::vector<char> vBuffer;
-	vBuffer.reserve(length);
-	vBuffer.insert(vBuffer.begin(), m_Buffer.begin() + start, m_Buffer.begin() + end);
+	return new KeyReader(str.c_str(), length);
+}
 
-	std::cout << "vBuffer: " << std::string(vBuffer.data()) << std::endl;
-
-	KeyReader *reader = new KeyReader(vBuffer);
-
-	return reader;
+void KeyReader::Release()
+{
+	if (m_lpBuffer)
+	{
+		delete[] m_lpBuffer;
+		m_lpBuffer = nullptr;
+	}
 }
 
 char *KeyReader::GetWords()
 {
-	std::vector<char> vBuffer = m_Buffer;
-
-	size_t start = 0,
-		   end = 0;
+	if (m_File.is_open())
+	{
+		if (!m_lpBuffer ||
+			(m_Offset >= m_BufferSize))
+		{
+			ReadLine();
+		}
+	}
 
 	// Increase offset till it finds the first char that is no tab or space
-	while (!IsEOF() &&
-		   (vBuffer[m_Offset] == '\t' || // TAB
-			vBuffer[m_Offset] == ' '))	 // SPACE
+	while ((m_Offset < m_BufferSize) &&
+		   (m_lpBuffer[m_Offset] == '\t' ||
+			m_lpBuffer[m_Offset] == ' '))
 	{
 		m_Offset++;
 	}
 
 	// sets starting offset of "word"
-	start = m_Offset;
 	m_StartOffset = m_Offset;
 
+	std::string str;
+	str.reserve(64);
+
 	// Increase offset while it didn't find the end of "word" (no tab, space, cr, lf, or zero)
-	while (!IsEOF() &&
-		   (vBuffer[m_Offset] != '\t' && // TAB
-			vBuffer[m_Offset] != ' '))	 // SPACE
+	while ((m_Offset < m_BufferSize) &&
+		   (m_lpBuffer[m_Offset] != '\t' && // TAB
+			m_lpBuffer[m_Offset] != ' '))	// SPACE
 	{
-		if (vBuffer[m_Offset] == '\r' ||
-			vBuffer[m_Offset] == '\n' ||
-			vBuffer[m_Offset] == '\0')
+		if (m_lpBuffer[m_Offset] == '\r' ||
+			m_lpBuffer[m_Offset] == '\n' ||
+			m_lpBuffer[m_Offset] == '\0')
 			break;
 
-		m_Offset++;
+		str += m_lpBuffer[m_Offset++];
 	}
 
 	// sets ending offset of "word"
-	end = m_Offset++;
+	m_Offset++;
 
 	// get "word" length and return null if it's zero or less
-	size_t length = end - start;
+	size_t length = str.length();
 	if (length <= 0)
 		return nullptr;
 
-	// alloc buffer for "word"
-	char *pBuffer = new char[length + 1];
+	char *lpBuffer = new char[length + 1];
 
-	// copy "word" for our buffer
-	std::copy(&vBuffer[start], &vBuffer[end], pBuffer);
+	std::copy(str.begin(), str.begin() + length, lpBuffer);
+	lpBuffer[length] = 0;
 
-	// puts a zero at it's end
-	pBuffer[length] = 0;
+	str.clear();
 
-	return pBuffer;
+	return lpBuffer;
+}
+
+void KeyReader::Close()
+{
+	if (m_File.is_open())
+	{
+		m_File.close();
+	}
 }
